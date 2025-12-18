@@ -1,0 +1,43 @@
+# Enhancement Plan
+
+## Goal Description
+Refine the [TranscriptView](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/TranscriptView.tsx#18-101) to correctly display both Channel Labels (e.g., "Interviewer") and Speaker IDs (e.g., "S1") simultaneously, ensuring that multi-speaker channels are cleanly distinguished. Additionally, apply "Premium" design touches to the [ControlPanel](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/ControlPanel.tsx#29-249) to improve the visual experience.
+
+## User Review Required
+> [!NOTE]
+> I am assuming that for Channel Diarization, the user might still want to see speaker separation within a channel.
+> Current behavior: Label overwrites Speaker ID.
+> Proposed behavior: "Label (Speaker ID)" (e.g., "Interviewer (S1)").
+
+## Proposed Changes
+
+### `src/components`
+
+#### [MODIFY] [TranscriptView.tsx](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/TranscriptView.tsx)
+- Update [TranscriptItemDisplay](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/TranscriptView.tsx#102-135) to show `${label} (${item.speaker})` if both are present.
+- Improve styling of the transcript bubbles for a more modern chat-like appearance.
+
+#### [MODIFY] [ControlPanel.tsx](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/ControlPanel.tsx)
+- Enhance the visual container style (glassmorphism effect or cleaner borders).
+- Improve the "Start/Stop" button pulsing animation or feedback.
+
+### `src/lib`
+
+#### [MODIFY] [useSpeechmatics.ts](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/lib/useSpeechmatics.ts)
+- Add cleaner fallback logic for channel mapping with a clear console warning if mapping fails, rather than silently defaulting to the first input.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Start App**: Run `npm run dev`.
+2.  **Configure**:
+    - Enter a dummy or real API key.
+    - Enable 2 channels.
+    - Label Ch1 "Host", Ch2 "Guest".
+3.  **Simulate**:
+    - Since I cannot easily pipe audio into the browser in this environment without a virtual device, I will rely on code inspection and potentially adding a "Simulate Transcript" button if needed (but unlikely).
+    - *Better approach*: I will verify the UI rendering by checking the build and potentially running the app in the background to see if it renders without crashing.
+    - Ideally, the user will verify with real audio.
+4.  **UI Check**:
+    - Verify [ControlPanel](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/ControlPanel.tsx#29-249) looks "premium" (gradients, shadows).
+    - Verify [TranscriptView](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/components/TranscriptView.tsx#18-101) handles long text and scrolling.

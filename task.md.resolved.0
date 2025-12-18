@@ -1,0 +1,10 @@
+# Speechmatics Realtime App Enhancement
+
+- [ ] Review and Polish UI Components
+    - [ ] Review `ControlPanel.tsx`
+    - [ ] Review `TranscriptView.tsx`
+    - [ ] Apply premium design updates if necessary
+- [ ] Verify Code Quality
+    - [ ] Check [useSpeechmatics.ts](file:///C:/Users/prakh/.gemini/antigravity/scratch/speechmatics-realtime-app/src/lib/useSpeechmatics.ts) for potential improvements (AudioWorklet?)
+    - [ ] Run lint/build to ensure no errors
+- [ ] Final Verification
