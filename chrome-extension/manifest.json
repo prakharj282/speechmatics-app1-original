@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "Sales Copilot Bridge",
+    "version": "1.0",
+    "description": "Bridge between React App and OpenAI Playground",
+    "permissions": [
+        "tabs",
+        "scripting",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "https://platform.openai.com/*",
+        "http://localhost:5173/*",
+        "http://localhost:5174/*",
+        "http://localhost:5175/*",
+        "http://localhost:3000/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://localhost:5173/*",
+                "http://localhost:5174/*",
+                "http://localhost:5175/*",
+                "http://localhost:3000/*"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ]
+}
