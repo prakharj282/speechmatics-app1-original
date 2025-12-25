@@ -1,8 +1,8 @@
-{
+﻿{
     "manifest_version": 3,
     "name": "Sales Copilot Bridge",
-    "version": "1.0",
-    "description": "Bridge between React App and OpenAI Playground",
+    "version": "1.2",
+    "description": "Bridge between React App and AI Platforms (Multitarget)",
     "permissions": [
         "tabs",
         "scripting",
@@ -10,9 +10,13 @@
     ],
     "host_permissions": [
         "https://platform.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
         "http://localhost:5173/*",
         "http://localhost:5174/*",
         "http://localhost:5175/*",
+        "http://localhost:5176/*",
+        "http://localhost:5177/*",
         "http://localhost:3000/*"
     ],
     "background": {
@@ -24,11 +28,44 @@
                 "http://localhost:5173/*",
                 "http://localhost:5174/*",
                 "http://localhost:5175/*",
+                "http://localhost:5176/*",
+                "http://localhost:5177/*",
                 "http://localhost:3000/*"
             ],
             "js": [
                 "content.js"
             ]
+        },
+        {
+            "matches": [
+                "https://platform.openai.com/*",
+                "https://chatgpt.com/*",
+                "https://claude.ai/*"
+            ],
+            "js": [
+                "content_adapter.js"
+            ]
         }
-    ]
+    ],
+    "commands": {
+        "send-conversation": {
+            "suggested_key": {
+                "default": "Alt+A"
+            },
+            "description": "Send Conversation Chunk"
+        },
+        "send-helper": {
+            "suggested_key": {
+                "default": "Alt+S"
+            },
+            "description": "Send Helper Chunk"
+        },
+        "send-combined": {
+            "suggested_key": {
+                "default": "Alt+D"
+            },
+            "description": "Send Combined Chunk"
+        }
+    }
 }
+

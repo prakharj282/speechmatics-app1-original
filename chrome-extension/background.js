@@ -1,117 +1,91 @@
-// background.js
+﻿// background.js
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === "COPILOT_SEND_CHUNK") {
-        console.log("Background received chunk to send to Playground");
-
-        // Find Playground Tab
-        chrome.tabs.query({ url: "https://platform.openai.com/*" }, (tabs) => {
-            if (!tabs || tabs.length === 0) {
-                console.error("No OpenAI Playground tab found");
-                sendResponse({ success: false, error: "No Playground tab open" });
-                return;
-            }
-
-            // Use the first found tab (should be the active one usually)
-            const targetTab = tabs[0];
-
-            // Inject script to update textarea
-            chrome.scripting.executeScript({
-                target: { tabId: targetTab.id },
-                func: injectAndSend,
-                args: [request.text]
-            }, (results) => {
-                if (chrome.runtime.lastError) {
-                    sendResponse({ success: false, error: chrome.runtime.lastError.message });
+    // 1. Get Tabs Request
+    if (request.type === "COPILOT_GET_TABS") {
+        const queryOptions = {}; // Query all tabs
+        chrome.tabs.query(queryOptions, (tabs) => {
+            console.log("Background: Querying tabs. Found total:", tabs.length);
+            const targets = [];
+            const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai"];
+            
+            tabs.forEach(tab => {
+                // detailed debugging
+                if (!tab.url) {
+                    console.log("Tab ID", tab.id, "has NO URL (Permission issue?)");
                 } else {
-                    // Check result of the injected function
-                    const result = results[0]?.result;
-                    sendResponse(result);
+                    try {
+                        const url = new URL(tab.url);
+                        console.log("Checking Tab:", tab.url);
+                        if (allowedHosts.some(host => url.hostname.includes(host))) {
+                            console.log("MATCH FOUND:", tab.url);
+                            targets.push({
+                                id: tab.id,
+                                title: tab.title,
+                                url: tab.url
+                            });
+                        }
+                    } catch (e) {
+                        console.error("URL Parse error", e);
+                    }
                 }
             });
+            console.log("Returning targets:", targets);
+            sendResponse({ success: true, tabs: targets });
         });
+        return true; // Async response
+    }
 
-        return true; // Keep message channel open for async response
+    // 2. Send Chunk Request
+    if (request.type === "COPILOT_SEND_CHUNK") {
+        console.log("Background received chunk to send:", request);
+
+        if (request.tabId) {
+            // Targeted Send
+            chrome.tabs.sendMessage(request.tabId, {
+                type: "COPILOT_INJECT_CHUNK",
+                text: request.text
+            }, (response) => {
+                 if (chrome.runtime.lastError) {
+                    sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                } else {
+                    sendResponse(response);
+                }
+            });
+        } else {
+            // Fallback: Legacy "First Tab" logic (for backward compatibility if needed, or error)
+             sendResponse({ success: false, error: "No target tabId provided" });
+        }
+        return true; // Keep message channel open
     }
 });
 
-function injectAndSend(messageText) {
-    // This runs inside the Playground Tab
+// --- Command Listener (Hotkeys) ---
+chrome.commands.onCommand.addListener((command) => {
+    console.log("Command Triggered:", command);
 
-    const log = (msg) => console.log(`[Copilot Injector] ${msg}`);
-    log("Starting injection...");
-
-    // 1. Find Textarea
-    // Playground structure changes, try robust selectors
-    let input = document.querySelector('textarea[placeholder*="Message"]');
-    if (!input) input = document.querySelector('textarea[placeholder*="Chat"]');
-    if (!input) {
-        // Fallback: look for likely main input
-        const textareas = Array.from(document.querySelectorAll('textarea'));
-        // Usually the last one or the one with contenteditable
-        input = textareas[textareas.length - 1];
-    }
-
-    // Last resort: active element?
-    if (!input && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.contentEditable === 'true')) {
-        input = document.activeElement;
-    }
-
-    if (!input) {
-        log("Could not find input textarea");
-        return { success: false, error: "Input not found" };
-    }
-
-    log("Found input!");
-
-    // 2. Set Value (React-friendly)
-    const proto = Object.getPrototypeOf(input);
-    const desc = Object.getOwnPropertyDescriptor(proto, "value");
-    if (desc && desc.set) {
-        desc.set.call(input, messageText);
-    } else {
-        input.value = messageText;
-    }
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.focus();
-
-    // 3. Click Send
-    // Strategy: Look for submit button in form, or button with specific icons/classes
-    // OpenAI often uses specific SVGs or aria-labels
-
-    setTimeout(() => {
-        let sendBtn = input.closest('form')?.querySelector('button[type="submit"]');
-
-        if (!sendBtn) {
-            // Try aria-label
-            sendBtn = document.querySelector('button[aria-label="Send message"]');
-        }
-
-        if (!sendBtn) {
-            // Try generic "last button in the form wrapper"
-            // This is brittle but often works if structure is simple
-            const wrapper = input.parentElement;
-            if (wrapper) {
-                const buttons = wrapper.querySelectorAll('button');
-                if (buttons.length > 0) sendBtn = buttons[buttons.length - 1];
+    // Forward to localhost
+    const forwardTo = (urlPattern) => {
+        chrome.tabs.query({ url: urlPattern }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+                tabs.forEach(tab => {
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: "TRIGGER_COMMAND",
+                        command: command
+                    }, (response) => {
+                         // Suppress "Receiving end does not exist" if tab is not ready
+                         const err = chrome.runtime.lastError;
+                         if (err) {
+                             // console.log("Ignored connection error", err.message);
+                         }
+                    });
+                });
             }
-        }
+        });
+    };
 
-        if (sendBtn) {
-            log("Found send button, clicking...");
-            sendBtn.click();
-        } else {
-            log("Send button not found, trying Enter...");
-            const enterEvent = new KeyboardEvent("keydown", {
-                key: "Enter",
-                code: "Enter",
-                keyCode: 13,
-                which: 13,
-                bubbles: true
-            });
-            input.dispatchEvent(enterEvent);
-        }
-    }, 100); // Tiny delay to let React processing input change happen
+    forwardTo("http://localhost:5173/*");
+    forwardTo("http://localhost:5175/*");
+});
 
-    return { success: true };
-}
+

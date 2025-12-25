@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { SpeechmaticsClient } from './utils/speechmatics';
 import { AudioProcessor } from './utils/audioProcessor';
 // Components
@@ -38,6 +38,10 @@ function App() {
     // UI
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+    // --- Target Selection State ---
+    const [availableTabs, setAvailableTabs] = useState([]);
+    const [selectedTabId, setSelectedTabId] = useState('');
+
     // --- Effects ---
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY_API_KEY, apiKey);
@@ -68,18 +72,60 @@ function App() {
         getDevices();
     }, []);
 
+
+    // --- External Command Listener ---
+    useEffect(() => {
+        const handleMessage = (event) => {
+             if (!event.data) return;
+             
+             // 1. Commands
+             if (event.data.type === 'TRIGGER_COMMAND') {
+                 console.log('App received command:', event.data.command);
+                 if (event.data.command === 'send-conversation') handleSendConversation();
+                 if (event.data.command === 'send-helper') handleSendHelper();
+                 if (event.data.command === 'send-combined') handleSendCombined();
+             }
+
+             // 2. Tab List
+             if (event.data.type === 'COPILOT_TABS_LIST') {
+                const tabs = event.data.tabs || [];
+                setAvailableTabs(tabs);
+                if (tabs.length > 0) {
+                    // Fix: Ensure strict type matching (IDs are numbers)
+                    const currentId = Number(selectedTabId);
+                    if (!selectedTabId || !tabs.find(t => t.id === currentId)) {
+                        setSelectedTabId(tabs[0].id);
+                    }
+                } else {
+                    setSelectedTabId('');
+                }
+             }
+        };
+        window.addEventListener('message', handleMessage);
+        
+        // Initial fetch
+        setTimeout(() => {
+            window.postMessage({ type: 'COPILOT_GET_TABS' }, '*');
+        }, 1000);
+
+        return () => window.removeEventListener('message', handleMessage);
+    }, [blocks, sentBlockCount, helperText, selectedTabId]); 
+
+    // --- Tab Management ---
+    const fetchAvailableTabs = () => {
+        window.postMessage({ type: 'COPILOT_GET_TABS' }, '*');
+    };
+
     // --- Logic ---
     const addTranscriptChunk = (speaker, text) => {
         setBlocks(prev => {
             const lastBlock = prev.length > 0 ? prev[prev.length - 1] : null;
             const lastBlockIndex = prev.length - 1;
             
-            // "Hard Split" Logic:
-            // If the last block is within the "Sent" history, we MUST NOT append to it.
-            // We must start a new block for the "New Content" section.
+            // "Hard Split" Logic
             const isLastBlockSent = lastBlockIndex < sentBlockCountRef.current;
 
-            // Case 1: Same speaker AND last block is actively editable (not sent) -> Append (Stitch Back)
+            // Case 1: Stitch Back
             if (lastBlock && lastBlock.speaker === speaker && !isLastBlockSent) {
                 const updatedBlock = {
                     ...lastBlock,
@@ -88,7 +134,7 @@ function App() {
                 return [...prev.slice(0, -1), updatedBlock];
             }
             
-            // Case 2: Different speaker OR last block was sent -> New block (Hard Split)
+            // Case 2: New Block
             const newBlock = {
                 id: `blk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 speaker: speaker,
@@ -100,13 +146,23 @@ function App() {
 
     // --- Send Logic ---
     const sendChunkToTarget = (text) => {
-        console.log("SENDING CHUNK:", text);
-        navigator.clipboard.writeText(text).then(() => {
-            setLastSentParams({ text, time: new Date().toLocaleTimeString() });
-        }).catch(err => {
-            console.error("Clipboard failed", err);
-            setError("Clipboard copy failed");
-        });
+        console.log("SENDING CHUNK:", text, "TO TAB:", selectedTabId);
+        
+        // 1. Copy to Clipboard (Backup)
+        navigator.clipboard.writeText(text).catch(err => console.error("Clipboard failed", err));
+
+        // 2. Send to Extension
+        if (selectedTabId) {
+             window.postMessage({
+                type: 'COPILOT_SEND_CHUNK',
+                text: text,
+                tabId: selectedTabId
+            }, '*');
+        } else {
+            console.warn("No target tab selected");
+        }
+        
+        setLastSentParams({ text, time: new Date().toLocaleTimeString() });
     };
 
     const formatBlock = (block) => {
@@ -264,7 +320,11 @@ function App() {
         <div className="app-container">
             <TopBar 
                 status={status} 
-                onOpenSettings={() => setIsSettingsOpen(true)} 
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                availableTabs={availableTabs}
+                selectedTabId={selectedTabId}
+                onSelectTab={(val) => setSelectedTabId(Number(val))}
+                onRefreshTabs={fetchAvailableTabs}
             />
             
             <ConversationTranscript 
