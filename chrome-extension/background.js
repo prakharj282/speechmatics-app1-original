@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.tabs.query(queryOptions, (tabs) => {
             console.log("Background: Querying tabs. Found total:", tabs.length);
             const targets = [];
-            const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai"];
+            const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai", "ai-sandbox.berkeley.edu"];
             
             tabs.forEach(tab => {
                 // detailed debugging
@@ -87,5 +87,6 @@ chrome.commands.onCommand.addListener((command) => {
     forwardTo("http://localhost:5173/*");
     forwardTo("http://localhost:5175/*");
 });
+
 
 

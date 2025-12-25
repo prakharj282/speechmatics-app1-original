@@ -22,26 +22,54 @@ function injectAndSend(messageText) {
         return handleChatGPT(messageText);
     } else if (hostname.includes("claude")) {
         return handleClaude(messageText);
+    } else if (hostname.includes("ai-sandbox.berkeley")) {
+        return handleBerkeleySandbox(messageText);
     }
     
     return { success: false, error: "Unknown host" };
 }
 
+function handleBerkeleySandbox(messageText) {
+    // 1. Find Input
+    const input = document.querySelector('#prompt-textarea');
+    if (!input) return { success: false, error: "Sandbox Input not found" };
+
+    // 2. Set Value (React compliant)
+    const proto = Object.getPrototypeOf(input);
+    const desc = Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && desc.set) {
+        desc.set.call(input, messageText);
+    } else {
+        input.value = messageText;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+
+    // 3. Submit
+    setTimeout(() => {
+        const sendBtn = document.querySelector('#send-button');
+        if (sendBtn) {
+            sendBtn.click();
+        } else {
+            input.dispatchEvent(new KeyboardEvent('keydown', {
+                bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
+            }));
+        }
+    }, 200);
+
+    return { success: true };
+}
+
 function handlePlayground(messageText) {
-    const log = (msg) => console.log(`[Playground Adapter] ${msg}`);
-    
-    // 1. Find Textarea
     let input = document.querySelector('textarea[placeholder*="Message"]');
     if (!input) input = document.querySelector('textarea[placeholder*="Chat"]');
     if (!input) {
-        // Fallback: Use the last textarea on page
         const textareas = Array.from(document.querySelectorAll('textarea'));
         input = textareas[textareas.length - 1];
     }
     
     if (!input) return { success: false, error: "Input not found" };
     
-    // 2. Set Value (React-safe)
     const proto = Object.getPrototypeOf(input);
     const desc = Object.getOwnPropertyDescriptor(proto, "value");
     if (desc && desc.set) {
@@ -52,16 +80,12 @@ function handlePlayground(messageText) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.focus();
     
-    // 3. Simple Enter Dispatch (Ctrl+Enter is often safer for Playground)
     setTimeout(() => {
-        // Try clicking the specific "Add message" button first
         const buttons = Array.from(document.querySelectorAll('button'));
         const sendBtn = buttons.find(b => b.textContent.trim() === 'Add message' || b.textContent.trim() === 'Run');
-        
         if (sendBtn) {
             sendBtn.click();
         } else {
-           // Dispatch Enter
            input.dispatchEvent(new KeyboardEvent('keydown', {
                bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
            }));
@@ -75,13 +99,23 @@ function handleChatGPT(messageText) {
     const input = document.querySelector('#prompt-textarea');
     if (!input) return { success: false, error: "ChatGPT Input not found" };
     
-    input.value = messageText;
+    const proto = Object.getPrototypeOf(input);
+    const desc = Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && desc.set) {
+        desc.set.call(input, messageText);
+    } else {
+        input.value = messageText;
+    }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
     
     setTimeout(() => {
-        const sendBtn = document.querySelector('[data-testid="send-button"]');
-        if (sendBtn) sendBtn.click();
+        const sendBtn = document.querySelector('[data-testid="send-button"]') || document.querySelector('button[aria-label="Send message"]');
+        if (sendBtn) {
+            sendBtn.click();
+        } else {
+             input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+        }
     }, 200);
 
     return { success: true };
@@ -98,6 +132,9 @@ function handleClaude(messageText) {
     setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label="Send Message"]');
         if (sendBtn) sendBtn.click();
+        else {
+            input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+        }
     }, 200);
 
     return { success: true };
