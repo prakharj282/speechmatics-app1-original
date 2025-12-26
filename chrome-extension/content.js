@@ -1,10 +1,7 @@
-﻿// content.js
+// content.js
 // Injected into the React App to bridge postMessage -> chrome.runtime.sendMessage
 
 console.log("Sales Copilot Bridge: Content Script Loaded");
-
-// Visual Confirmation of Injection
-// document.title = document.title + " (Bridge Active)";
 
 window.addEventListener("message", (event) => {
     // Only accept messages from the same window
@@ -31,14 +28,26 @@ window.addEventListener("message", (event) => {
     // 2. Get Tabs
     if (event.data.type && event.data.type === "COPILOT_GET_TABS") {
         console.log("Bridge requesting tabs list...");
-        chrome.runtime.sendMessage({ type: "COPILOT_GET_TABS" }, (response) => {
-            if (response && response.success) {
-                window.postMessage({
-                    type: "COPILOT_TABS_LIST",
-                    tabs: response.tabs
-                }, "*");
-            }
-        });
+        try {
+            chrome.runtime.sendMessage({ type: "COPILOT_GET_TABS" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Bridge Error: failed to contact background:", chrome.runtime.lastError.message);
+                    return;
+                }
+                
+                if (response && response.success) {
+                    console.log("Bridge received tabs from background:", response.tabs);
+                    window.postMessage({
+                        type: "COPILOT_TABS_LIST",
+                        tabs: response.tabs
+                    }, "*");
+                } else {
+                    console.warn("Bridge: Background returned failure or no tabs", response);
+                }
+            });
+        } catch (e) {
+             console.error("Bridge: Exception sending message to background", e);
+        }
     }
 });
 
@@ -52,4 +61,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }, "*");
     }
 });
-

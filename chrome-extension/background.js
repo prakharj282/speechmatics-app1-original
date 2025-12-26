@@ -1,23 +1,58 @@
-﻿// background.js
+// background.js
+
+chrome.runtime.onInstalled.addListener(() => {
+    console.log("Extension Installed/Updated. Injecting content scripts...");
+    const mani = chrome.runtime.getManifest();
+    const contentScripts = mani.content_scripts;
+
+    if (contentScripts) {
+        contentScripts.forEach(script => {
+            if (script.js && script.js.length > 0) {
+                 // Convert matches to chrome.tabs.query format or just query all and filter?
+                 // Simple approach: query all and check url
+                 chrome.tabs.query({ url: script.matches }, (tabs) => {
+                    tabs.forEach(tab => {
+                        if (!tab.url.startsWith("chrome://")) {
+                            chrome.scripting.executeScript({
+                                target: { tabId: tab.id },
+                                files: script.js
+                            }).then(() => {
+                                console.log("Injected", script.js, "into", tab.url);
+                            }).catch(err => {
+                                console.log("Injection failed (likely already there or restricted):", err.message);
+                            });
+                        }
+                    });
+                 });
+            }
+        });
+    }
+});
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 1. Get Tabs Request
     if (request.type === "COPILOT_GET_TABS") {
         const queryOptions = {}; // Query all tabs
         chrome.tabs.query(queryOptions, (tabs) => {
+            if (chrome.runtime.lastError) {
+                console.error("Background: Tab query failed", chrome.runtime.lastError);
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                return;
+            }
+
             console.log("Background: Querying tabs. Found total:", tabs.length);
             const targets = [];
             const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai", "ai-sandbox.berkeley.edu"];
             
             tabs.forEach(tab => {
-                // detailed debugging
                 if (!tab.url) {
-                    console.log("Tab ID", tab.id, "has NO URL (Permission issue?)");
+                    console.log(`Tab ID ${tab.id} has NO URL (Permission issue? or Restricted URL)`);
                 } else {
                     try {
                         const url = new URL(tab.url);
-                        console.log("Checking Tab:", tab.url);
-                        if (allowedHosts.some(host => url.hostname.includes(host))) {
+                        const isMatch = allowedHosts.some(host => url.hostname.includes(host));
+                        
+                        if (isMatch) {
                             console.log("MATCH FOUND:", tab.url);
                             targets.push({
                                 id: tab.id,
@@ -53,7 +88,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
             });
         } else {
-            // Fallback: Legacy "First Tab" logic (for backward compatibility if needed, or error)
              sendResponse({ success: false, error: "No target tabId provided" });
         }
         return true; // Keep message channel open
@@ -64,7 +98,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.commands.onCommand.addListener((command) => {
     console.log("Command Triggered:", command);
 
-    // Forward to localhost
     const forwardTo = (urlPattern) => {
         chrome.tabs.query({ url: urlPattern }, (tabs) => {
             if (tabs && tabs.length > 0) {
@@ -73,11 +106,7 @@ chrome.commands.onCommand.addListener((command) => {
                         type: "TRIGGER_COMMAND",
                         command: command
                     }, (response) => {
-                         // Suppress "Receiving end does not exist" if tab is not ready
                          const err = chrome.runtime.lastError;
-                         if (err) {
-                             // console.log("Ignored connection error", err.message);
-                         }
                     });
                 });
             }
@@ -85,8 +114,5 @@ chrome.commands.onCommand.addListener((command) => {
     };
 
     forwardTo("http://localhost:5173/*");
-    forwardTo("http://localhost:5175/*");
+    forwardTo("http://localhost:5179/*");
 });
-
-
-
