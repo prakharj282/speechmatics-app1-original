@@ -8,7 +8,7 @@ chrome.runtime.onInstalled.addListener(() => {
     if (contentScripts) {
         contentScripts.forEach(script => {
             if (script.js && script.js.length > 0) {
-                 // Convert matches to chrome.tabs.query format or just query all and filter?
+                 // Convert matches to chrome.tabs.query format or just query all and check url
                  // Simple approach: query all and check url
                  chrome.tabs.query({ url: script.matches }, (tabs) => {
                     tabs.forEach(tab => {
@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             tabs.forEach(tab => {
                 if (!tab.url) {
-                    console.log(`Tab ID ${tab.id} has NO URL (Permission issue? or Restricted URL)`);
+                    console.log('Tab ID', tab.id, 'has NO URL (Permission issue? or Restricted URL)');
                 } else {
                     try {
                         const url = new URL(tab.url);
@@ -115,4 +115,5 @@ chrome.commands.onCommand.addListener((command) => {
 
     forwardTo("http://localhost:5173/*");
     forwardTo("http://localhost:5179/*");
+    forwardTo("http://localhost:5180/*");
 });
