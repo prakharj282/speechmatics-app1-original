@@ -18,7 +18,8 @@ window.addEventListener("message", (event) => {
         console.log("Bridge received chunk:", event.data);
         chrome.runtime.sendMessage({
             type: "COPILOT_SEND_CHUNK",
-            text: event.data.text,
+            text: event.data.text, 
+            autoSubmit: event.data.autoSubmit,
             tabId: event.data.tabId
         }, (response) => {
              // Optional: Forward success/fail back to window if needed
@@ -58,6 +59,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         window.postMessage({
             type: "TRIGGER_COMMAND",
             command: request.command
+        }, "*");
+    }
+
+    if (request.type === "COPILOT_REQUEST_PAYLOAD") {
+        console.log("Content Script forwarding payload request to window");
+        window.postMessage({
+            type: "COPILOT_REQUEST_PAYLOAD",
+            kind: request.kind,
+            sourceTabId: request.sourceTabId
         }, "*");
     }
 });

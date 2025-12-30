@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // Targeted Send
             chrome.tabs.sendMessage(request.tabId, {
                 type: "COPILOT_INJECT_CHUNK",
-                text: request.text
+                text: request.text, autoSubmit: request.autoSubmit
             }, (response) => {
                 if (chrome.runtime.lastError) {
                     sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -92,6 +92,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         return true; // Keep message channel open
     }
+
+    // 3. Request Payload (Pull)
+    if (request.type === "COPILOT_REQUEST_PAYLOAD") {
+         console.log("Background received payload request:", request);
+         const sourceTabId = sender.tab ? sender.tab.id : null;
+
+         chrome.tabs.query({ url: "http://localhost:5180/*" }, (tabs) => {
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                    type: "COPILOT_REQUEST_PAYLOAD",
+                    kind: request.kind,
+                    sourceTabId: sourceTabId
+                });
+            });
+         });
+         return true;
+    }
+
 });
 
 // --- Command Listener (Hotkeys) ---

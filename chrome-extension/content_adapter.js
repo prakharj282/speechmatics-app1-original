@@ -7,33 +7,33 @@ console.log("Sales Copilot Adapter: Loaded on", window.location.hostname);
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "COPILOT_INJECT_CHUNK") {
         console.log("Adapter received chunk:", request.text);
-        const result = injectAndSend(request.text);
+        const result = injectAndSend(request.text, request.autoSubmit);
         sendResponse(result);
     }
 });
 
-function injectAndSend(messageText) {
+function injectAndSend(messageText, autoSubmit) {
     const hostname = window.location.hostname;
 
     // Strategy Pattern
     if (hostname.includes("platform.openai")) {
-        return handlePlayground(messageText);
+        return handlePlayground(messageText, autoSubmit);
     } else if (hostname.includes("chatgpt")) {
-        return handleChatGPT(messageText);
+        return handleChatGPT(messageText, autoSubmit);
     } else if (hostname.includes("claude")) {
-        return handleClaude(messageText);
+        return handleClaude(messageText, autoSubmit);
     } else if (hostname.includes("ai-sandbox.berkeley")) {
-        return handleBerkeleySandbox(messageText);
+        return handleBerkeleySandbox(messageText, autoSubmit);
     } else if (hostname.includes("typingmind")) {
-        return handleTypingMind(messageText);
+        return handleTypingMind(messageText, autoSubmit);
     } else if (hostname.includes("openrouter")) {
-        return handleOpenRouter(messageText);
+        return handleOpenRouter(messageText, autoSubmit);
     }
 
     return { success: false, error: "Unknown host" };
 }
 
-function handleBerkeleySandbox(messageText) {
+function handleBerkeleySandbox(messageText, autoSubmit) {
     // 1. Find Input
     const input = document.querySelector('#prompt-textarea');
     if (!input) return { success: false, error: "Sandbox Input not found" };
@@ -50,6 +50,9 @@ function handleBerkeleySandbox(messageText) {
     input.focus();
 
     // 3. Submit
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const sendBtn = document.querySelector('#send-button');
         if (sendBtn) {
@@ -64,7 +67,7 @@ function handleBerkeleySandbox(messageText) {
     return { success: true };
 }
 
-function handlePlayground(messageText) {
+function handlePlayground(messageText, autoSubmit) {
     let input = document.querySelector('textarea[placeholder*="Message"]');
     if (!input) input = document.querySelector('textarea[placeholder*="Chat"]');
     if (!input) {
@@ -84,6 +87,9 @@ function handlePlayground(messageText) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.focus();
 
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const buttons = Array.from(document.querySelectorAll('button'));
         const sendBtn = buttons.find(b => b.textContent.trim() === 'Add message' || b.textContent.trim() === 'Run');
@@ -99,7 +105,7 @@ function handlePlayground(messageText) {
     return { success: true };
 }
 
-function handleChatGPT(messageText) {
+function handleChatGPT(messageText, autoSubmit) {
     const input = document.querySelector('#prompt-textarea');
     if (!input) return { success: false, error: "ChatGPT Input not found" };
 
@@ -113,6 +119,9 @@ function handleChatGPT(messageText) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
 
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const sendBtn = document.querySelector('[data-testid="send-button"]') || document.querySelector('button[aria-label="Send message"]');
         if (sendBtn) {
@@ -125,7 +134,7 @@ function handleChatGPT(messageText) {
     return { success: true };
 }
 
-function handleClaude(messageText) {
+function handleClaude(messageText, autoSubmit) {
     const input = document.querySelector('div[contenteditable="true"]');
     if (!input) return { success: false, error: "Claude Input not found" };
 
@@ -133,6 +142,9 @@ function handleClaude(messageText) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
 
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label="Send Message"]');
         if (sendBtn) sendBtn.click();
@@ -144,7 +156,7 @@ function handleClaude(messageText) {
     return { success: true };
 }
 
-function handleTypingMind(messageText) {
+function handleTypingMind(messageText, autoSubmit) {
     const input = document.querySelector('#chat-input-textbox');
     if (!input) return { success: false, error: "TypingMind Input not found" };
 
@@ -158,6 +170,9 @@ function handleTypingMind(messageText) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
 
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const sendBtn = document.querySelector('button[data-element-id="send-button"]');
         if (sendBtn) {
@@ -172,7 +187,7 @@ function handleTypingMind(messageText) {
     return { success: true };
 }
 
-function handleOpenRouter(messageText) {
+function handleOpenRouter(messageText, autoSubmit) {
     const input = document.querySelector('textarea[data-testid="composer-input"]');
     if (!input) return { success: false, error: "OpenRouter Input not found" };
 
@@ -186,6 +201,9 @@ function handleOpenRouter(messageText) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
 
+    
+    if (autoSubmit === false) return { success: true, note: "Text injected, auto-submit skipped" };
+    
     setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label="Send message"]');
         if (sendBtn && !sendBtn.disabled) {
@@ -199,3 +217,23 @@ function handleOpenRouter(messageText) {
 
     return { success: true };
 }
+
+// --- Local Shortcut Listener ---
+document.addEventListener('keydown', (e) => {
+    if (!e.altKey) return;
+    
+    let kind = null;
+    if (e.code === 'KeyZ') kind = 'conversation';
+    if (e.code === 'KeyX') kind = 'helper';
+    if (e.code === 'KeyC') kind = 'combined';
+    
+    if (kind) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Sales Copilot: Local Shortcut Triggered ->', kind);
+        chrome.runtime.sendMessage({
+            type: 'COPILOT_REQUEST_PAYLOAD',
+            kind: kind
+        });
+    }
+}, true);

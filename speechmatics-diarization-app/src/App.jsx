@@ -94,9 +94,26 @@ function App() {
              // 1. Commands
              if (event.data.type === 'TRIGGER_COMMAND') {
                  console.log('App received command:', event.data.command);
-                 if (event.data.command === 'send-conversation') handleSendConversation();
-                 if (event.data.command === 'send-helper') handleSendHelper();
-                 if (event.data.command === 'send-combined') handleSendCombined();
+                 if (event.data.command === 'send-conversation') handleSendConversation(true);
+                 if (event.data.command === 'send-helper') handleSendHelper(true);
+                 if (event.data.command === 'send-combined') handleSendCombined(true);
+                 if (event.data.command === 'send-conversation-no-enter') handleSendConversation(false);
+                 if (event.data.command === 'send-helper-no-enter') handleSendHelper(false);
+                 if (event.data.command === 'send-combined-no-enter') handleSendCombined(false);
+                 
+                 
+                 
+             }
+
+             
+             // 3. Payload Request
+             if (event.data.type === 'COPILOT_REQUEST_PAYLOAD') {
+                 const { kind, sourceTabId } = event.data;
+                 console.log("App received payload request:", kind, "from tab", sourceTabId);
+                 
+                 if (kind === 'conversation') handleSendConversation(false, sourceTabId);
+                 if (kind === 'helper') handleSendHelper(false, sourceTabId);
+                 if (kind === 'combined') handleSendCombined(false, sourceTabId);
              }
 
              // 2. Tab List
@@ -158,18 +175,18 @@ function App() {
     };
 
     // --- Send Logic ---
-    const sendChunkToTarget = (text) => {
-        console.log("SENDING CHUNK:", text, "TO TAB:", selectedTabId);
+    const sendChunkToTarget = (text, autoSubmit = true, targetTabId = null) => {
+        console.log("SENDING CHUNK:", text, "TO TAB:", targetTabId || selectedTabId);
         
         // 1. Copy to Clipboard (Backup)
         navigator.clipboard.writeText(text).catch(err => console.error("Clipboard failed", err));
 
         // 2. Send to Extension
-        if (selectedTabId) {
+        const finalTabId = targetTabId || selectedTabId; if (finalTabId) {
              window.postMessage({
                 type: 'COPILOT_SEND_CHUNK',
                 text: text,
-                tabId: selectedTabId
+                tabId: finalTabId, autoSubmit: autoSubmit
             }, '*');
         } else {
             console.warn("No target tab selected");
@@ -187,7 +204,7 @@ function App() {
         return `Helper\n{\n  ${text}\n}`;
     };
 
-    const handleSendConversation = () => {
+    const handleSendConversation = (autoSubmit = true, targetTabId = null) => {
         const unsentBlocks = blocks.slice(sentBlockCount);
         if (unsentBlocks.length === 0) {
             console.log("No new conversation to send");
@@ -195,24 +212,24 @@ function App() {
         }
 
         const chunkText = unsentBlocks.map(formatBlock).join('\n\n');
-        sendChunkToTarget(chunkText);
+        sendChunkToTarget(chunkText, autoSubmit, targetTabId);
         setSentBlockCount(blocks.length);
         showToast("Conversation Sent!");
     };
 
-    const handleSendHelper = () => {
+    const handleSendHelper = (autoSubmit = true, targetTabId = null) => {
         if (!helperText.trim()) {
             console.log("No helper text");
             return;
         }
 
         const chunkText = formatHelper(helperText);
-        sendChunkToTarget(chunkText);
+        sendChunkToTarget(chunkText, autoSubmit, targetTabId);
         setHelperText('');
         showToast("Helper Sent!");
     };
 
-    const handleSendCombined = () => {
+    const handleSendCombined = (autoSubmit = true, targetTabId = null) => {
         const unsentBlocks = blocks.slice(sentBlockCount);
         const hasConv = unsentBlocks.length > 0;
         const hasHelper = !!helperText.trim();
@@ -228,7 +245,7 @@ function App() {
         }
 
         const combinedText = parts.join('\n\n');
-        sendChunkToTarget(combinedText);
+        sendChunkToTarget(combinedText, autoSubmit, targetTabId);
 
         if (hasConv) setSentBlockCount(blocks.length);
         if (hasHelper) setHelperText('');
