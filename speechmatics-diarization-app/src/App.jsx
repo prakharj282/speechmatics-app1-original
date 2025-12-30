@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SpeechmaticsClient } from './utils/speechmatics';
 import { AudioProcessor } from './utils/audioProcessor';
 // Components
@@ -37,6 +37,19 @@ function App() {
 
     // UI
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [toastMsg, setToastMsg] = useState(null); // Toast State
+
+    // Toast Timer
+    useEffect(() => {
+        if (toastMsg) {
+            const timer = setTimeout(() => setToastMsg(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMsg]);
+
+    const showToast = (msg) => {
+        setToastMsg(msg);
+    };
 
     // --- Target Selection State ---
     const [availableTabs, setAvailableTabs] = useState([]);
@@ -184,6 +197,7 @@ function App() {
         const chunkText = unsentBlocks.map(formatBlock).join('\n\n');
         sendChunkToTarget(chunkText);
         setSentBlockCount(blocks.length);
+        showToast("Conversation Sent!");
     };
 
     const handleSendHelper = () => {
@@ -195,6 +209,7 @@ function App() {
         const chunkText = formatHelper(helperText);
         sendChunkToTarget(chunkText);
         setHelperText('');
+        showToast("Helper Sent!");
     };
 
     const handleSendCombined = () => {
@@ -217,10 +232,12 @@ function App() {
 
         if (hasConv) setSentBlockCount(blocks.length);
         if (hasHelper) setHelperText('');
+        showToast("Combined Text Sent!");
     };
 
     const handleResetAnchor = () => {
         setSentBlockCount(blocks.length);
+        showToast("Anchor Reset!");
     };
 
     // --- Handlers ---
@@ -361,6 +378,13 @@ function App() {
             {lastSentParams && (
                 <div style={{ padding: '0.5rem', fontSize: '0.8rem', color: '#666', borderTop: '1px solid #333' }}>
                     Last sent ({lastSentParams.time}): {lastSentParams.text.substring(0, 50)}...
+                </div>
+            )}
+
+            {/* TOAST UI */}
+            {toastMsg && (
+                <div className="toast-notification">
+                    {toastMsg}
                 </div>
             )}
         </div>
