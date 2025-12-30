@@ -1,4 +1,4 @@
-﻿// content_adapter.js
+// content_adapter.js
 // Runs on the Target Websites (Playground, ChatGPT, Claude)
 
 console.log("Sales Copilot Adapter: Loaded on", window.location.hostname);
@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function injectAndSend(messageText) {
     const hostname = window.location.hostname;
-    
+
     // Strategy Pattern
     if (hostname.includes("platform.openai")) {
         return handlePlayground(messageText);
@@ -24,8 +24,12 @@ function injectAndSend(messageText) {
         return handleClaude(messageText);
     } else if (hostname.includes("ai-sandbox.berkeley")) {
         return handleBerkeleySandbox(messageText);
+    } else if (hostname.includes("typingmind")) {
+        return handleTypingMind(messageText);
+    } else if (hostname.includes("openrouter")) {
+        return handleOpenRouter(messageText);
     }
-    
+
     return { success: false, error: "Unknown host" };
 }
 
@@ -67,9 +71,9 @@ function handlePlayground(messageText) {
         const textareas = Array.from(document.querySelectorAll('textarea'));
         input = textareas[textareas.length - 1];
     }
-    
+
     if (!input) return { success: false, error: "Input not found" };
-    
+
     const proto = Object.getPrototypeOf(input);
     const desc = Object.getOwnPropertyDescriptor(proto, "value");
     if (desc && desc.set) {
@@ -79,16 +83,16 @@ function handlePlayground(messageText) {
     }
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.focus();
-    
+
     setTimeout(() => {
         const buttons = Array.from(document.querySelectorAll('button'));
         const sendBtn = buttons.find(b => b.textContent.trim() === 'Add message' || b.textContent.trim() === 'Run');
         if (sendBtn) {
             sendBtn.click();
         } else {
-           input.dispatchEvent(new KeyboardEvent('keydown', {
-               bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
-           }));
+            input.dispatchEvent(new KeyboardEvent('keydown', {
+                bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
+            }));
         }
     }, 200);
 
@@ -98,7 +102,7 @@ function handlePlayground(messageText) {
 function handleChatGPT(messageText) {
     const input = document.querySelector('#prompt-textarea');
     if (!input) return { success: false, error: "ChatGPT Input not found" };
-    
+
     const proto = Object.getPrototypeOf(input);
     const desc = Object.getOwnPropertyDescriptor(proto, "value");
     if (desc && desc.set) {
@@ -108,13 +112,13 @@ function handleChatGPT(messageText) {
     }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
-    
+
     setTimeout(() => {
         const sendBtn = document.querySelector('[data-testid="send-button"]') || document.querySelector('button[aria-label="Send message"]');
         if (sendBtn) {
             sendBtn.click();
         } else {
-             input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+            input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
         }
     }, 200);
 
@@ -128,12 +132,68 @@ function handleClaude(messageText) {
     input.innerHTML = `<p>${messageText}</p>`;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
-    
+
     setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label="Send Message"]');
         if (sendBtn) sendBtn.click();
         else {
             input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+        }
+    }, 200);
+
+    return { success: true };
+}
+
+function handleTypingMind(messageText) {
+    const input = document.querySelector('#chat-input-textbox');
+    if (!input) return { success: false, error: "TypingMind Input not found" };
+
+    const proto = Object.getPrototypeOf(input);
+    const desc = Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && desc.set) {
+        desc.set.call(input, messageText);
+    } else {
+        input.value = messageText;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+
+    setTimeout(() => {
+        const sendBtn = document.querySelector('button[data-element-id="send-button"]');
+        if (sendBtn) {
+            sendBtn.click();
+        } else {
+            input.dispatchEvent(new KeyboardEvent('keydown', {
+                bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
+            }));
+        }
+    }, 200);
+
+    return { success: true };
+}
+
+function handleOpenRouter(messageText) {
+    const input = document.querySelector('textarea[data-testid="composer-input"]');
+    if (!input) return { success: false, error: "OpenRouter Input not found" };
+
+    const proto = Object.getPrototypeOf(input);
+    const desc = Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && desc.set) {
+        desc.set.call(input, messageText);
+    } else {
+        input.value = messageText;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+
+    setTimeout(() => {
+        const sendBtn = document.querySelector('button[aria-label="Send message"]');
+        if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+        } else {
+            input.dispatchEvent(new KeyboardEvent('keydown', {
+                bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13
+            }));
         }
     }, 200);
 

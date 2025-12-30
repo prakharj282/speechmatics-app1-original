@@ -8,9 +8,9 @@ chrome.runtime.onInstalled.addListener(() => {
     if (contentScripts) {
         contentScripts.forEach(script => {
             if (script.js && script.js.length > 0) {
-                 // Convert matches to chrome.tabs.query format or just query all and check url
-                 // Simple approach: query all and check url
-                 chrome.tabs.query({ url: script.matches }, (tabs) => {
+                // Convert matches to chrome.tabs.query format or just query all and check url
+                // Simple approach: query all and check url
+                chrome.tabs.query({ url: script.matches }, (tabs) => {
                     tabs.forEach(tab => {
                         if (!tab.url.startsWith("chrome://")) {
                             chrome.scripting.executeScript({
@@ -23,7 +23,7 @@ chrome.runtime.onInstalled.addListener(() => {
                             });
                         }
                     });
-                 });
+                });
             }
         });
     }
@@ -42,8 +42,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             console.log("Background: Querying tabs. Found total:", tabs.length);
             const targets = [];
-            const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai", "ai-sandbox.berkeley.edu"];
-            
+            const allowedHosts = ["platform.openai.com", "chatgpt.com", "claude.ai", "ai-sandbox.berkeley.edu", "typingmind", "openrouter"];
+
             tabs.forEach(tab => {
                 if (!tab.url) {
                     console.log('Tab ID', tab.id, 'has NO URL (Permission issue? or Restricted URL)');
@@ -51,7 +51,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     try {
                         const url = new URL(tab.url);
                         const isMatch = allowedHosts.some(host => url.hostname.includes(host));
-                        
+
                         if (isMatch) {
                             console.log("MATCH FOUND:", tab.url);
                             targets.push({
@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
             });
             console.log("Returning targets:", targets);
-            sendResponse({ success: true, tabs: targets });
+            sendResponse({ success: true, targets: targets, tabs: targets }); // Sending both for compatibility
         });
         return true; // Async response
     }
@@ -81,14 +81,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 type: "COPILOT_INJECT_CHUNK",
                 text: request.text
             }, (response) => {
-                 if (chrome.runtime.lastError) {
+                if (chrome.runtime.lastError) {
                     sendResponse({ success: false, error: chrome.runtime.lastError.message });
                 } else {
                     sendResponse(response);
                 }
             });
         } else {
-             sendResponse({ success: false, error: "No target tabId provided" });
+            sendResponse({ success: false, error: "No target tabId provided" });
         }
         return true; // Keep message channel open
     }
@@ -106,7 +106,7 @@ chrome.commands.onCommand.addListener((command) => {
                         type: "TRIGGER_COMMAND",
                         command: command
                     }, (response) => {
-                         const err = chrome.runtime.lastError;
+                        const err = chrome.runtime.lastError;
                     });
                 });
             }
