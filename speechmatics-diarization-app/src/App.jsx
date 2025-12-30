@@ -204,7 +204,9 @@ function App() {
         return `Helper\n{\n  ${text}\n}`;
     };
 
-    const handleSendConversation = (autoSubmit = true, targetTabId = null) => {
+    const handleSendConversation = (arg1 = true, arg2 = null) => {
+        const autoSubmit = (typeof arg1 === 'boolean') ? arg1 : true;
+        const targetTabId = (typeof arg2 === 'number' || typeof arg2 === 'string') ? arg2 : null;
         const unsentBlocks = blocks.slice(sentBlockCount);
         if (unsentBlocks.length === 0) {
             console.log("No new conversation to send");
@@ -217,7 +219,9 @@ function App() {
         showToast("Conversation Sent!");
     };
 
-    const handleSendHelper = (autoSubmit = true, targetTabId = null) => {
+    const handleSendHelper = (arg1 = true, arg2 = null) => {
+        const autoSubmit = (typeof arg1 === 'boolean') ? arg1 : true;
+        const targetTabId = (typeof arg2 === 'number' || typeof arg2 === 'string') ? arg2 : null;
         if (!helperText.trim()) {
             console.log("No helper text");
             return;
@@ -229,7 +233,9 @@ function App() {
         showToast("Helper Sent!");
     };
 
-    const handleSendCombined = (autoSubmit = true, targetTabId = null) => {
+    const handleSendCombined = (arg1 = true, arg2 = null) => {
+        const autoSubmit = (typeof arg1 === 'boolean') ? arg1 : true;
+        const targetTabId = (typeof arg2 === 'number' || typeof arg2 === 'string') ? arg2 : null;
         const unsentBlocks = blocks.slice(sentBlockCount);
         const hasConv = unsentBlocks.length > 0;
         const hasHelper = !!helperText.trim();
