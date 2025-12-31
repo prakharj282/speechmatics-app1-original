@@ -409,11 +409,14 @@ function App() {
                 language: language,
                 diarization: 'none',
                 transcriptionConfig: {
-                    max_delay: 2
+                    max_delay: 0.7 // Sync with main conversation (was 2)
                 }
             });
 
             helperClientRef.current.onTranscript = (data) => {
+                // FIX: Ignore partial transcripts
+                if (data.message === 'AddPartialTranscript') return;
+
                 const results = data.results;
                 if (!results || results.length === 0) return;
 
