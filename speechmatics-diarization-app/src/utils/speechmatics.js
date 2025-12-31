@@ -34,7 +34,6 @@ export class SpeechmaticsClient {
                     transcription_config: {
                         language: options.language || "en",
                         diarization: options.diarization || "channel",
-                        channel_diarization_labels: options.channelLabels || ["Channel 1", "Channel 2"],
                         enable_partials: true,
                         operating_point: "enhanced",
                         max_delay: 0.7,
@@ -42,6 +41,11 @@ export class SpeechmaticsClient {
                         ...options.transcriptionConfig // Merge extra config if needed
                     },
                 };
+
+                // Only add channel labels if diarization is enabled
+                if (startRecognitionMessage.transcription_config.diarization !== 'none') {
+                    startRecognitionMessage.transcription_config.channel_diarization_labels = options.channelLabels || ["Channel 1", "Channel 2"];
+                }
 
                 this.ws.send(JSON.stringify(startRecognitionMessage));
             };
@@ -84,15 +88,19 @@ export class SpeechmaticsClient {
     sendAudio(channelLabel, int16Data) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-        const base64Data = this.arrayBufferToBase64(int16Data.buffer);
-
-        const message = {
-            message: "AddChannelAudio",
-            channel: channelLabel,
-            data: base64Data,
-        };
-
-        this.ws.send(JSON.stringify(message));
+        if (channelLabel) {
+            // AddChannelAudio uses JSON with Base64 data
+            const base64Data = this.arrayBufferToBase64(int16Data.buffer);
+            const message = {
+                message: "AddChannelAudio",
+                channel: channelLabel,
+                data: base64Data,
+            };
+            this.ws.send(JSON.stringify(message));
+        } else {
+            // AddAudio (default) uses raw binary frames
+            this.ws.send(int16Data.buffer);
+        }
     }
 
     disconnect() {

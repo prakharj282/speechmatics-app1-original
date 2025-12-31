@@ -71,7 +71,7 @@ const SettingsModal = ({
                     <div className="form-group">
                         <label>Recommendation API Key</label>
                         <input
-                            type="password"
+                            type="text"
                             value={helperApiKey}
                             onChange={(e) => setHelperApiKey(e.target.value)}
                             placeholder="Enter Independent API Key for Helper"
