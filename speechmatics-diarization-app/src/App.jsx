@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SpeechmaticsClient } from './utils/speechmatics';
 import { AudioProcessor } from './utils/audioProcessor';
 // Components
@@ -163,10 +163,15 @@ function App() {
     // --- Logic ---
     const addTranscriptChunk = (speaker, text, endTime) => {
         setBlocks(prev => {
-            const lastBlock = prev.length > 0 ? prev[prev.length - 1] : null;
+            const lastBlockIndex = prev.length - 1;
+            const lastBlock = prev.length > 0 ? prev[lastBlockIndex] : null;
+
+            // "Hard Split" Logic:
+            // If the last block is within the "Sent" history, we MUST NOT append to it.
+            const isLastBlockSent = lastBlockIndex < sentBlockCountRef.current;
 
             // 1. Same speaker continuing immediately -> Append
-            if (lastBlock && lastBlock.speaker === speaker) {
+            if (lastBlock && lastBlock.speaker === speaker && !isLastBlockSent) {
                 const updatedBlock = {
                     ...lastBlock,
                     text: (lastBlock.text + ' ' + text).trim(),
@@ -554,5 +559,3 @@ function App() {
 }
 
 export default App;
-
-
