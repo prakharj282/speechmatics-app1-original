@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { SpeechmaticsClient } from './utils/speechmatics';
 import { AudioProcessor } from './utils/audioProcessor';
 // Components
@@ -10,6 +10,9 @@ import SettingsModal from './components/SettingsModal';
 
 const STORAGE_KEY_API_KEY = 'sm_api_key';
 const STORAGE_KEY_HELPER_KEY = 'sm_helper_key';
+
+// Tune this value for cross-talk sensitivity
+const MERGE_WINDOW_SECONDS = 2.5;
 
 function App() {
     // --- State ---
@@ -158,32 +161,53 @@ function App() {
     };
 
     // --- Logic ---
-    const addTranscriptChunk = (speaker, text) => {
+    const addTranscriptChunk = (speaker, text, endTime) => {
         setBlocks(prev => {
             const lastBlock = prev.length > 0 ? prev[prev.length - 1] : null;
-            const lastBlockIndex = prev.length - 1;
 
-            // "Hard Split" Logic
-            const isLastBlockSent = lastBlockIndex < sentBlockCountRef.current;
-
-            // Case 1: Stitch Back
-            if (lastBlock && lastBlock.speaker === speaker && !isLastBlockSent) {
+            // 1. Same speaker continuing immediately -> Append
+            if (lastBlock && lastBlock.speaker === speaker) {
                 const updatedBlock = {
                     ...lastBlock,
-                    text: (lastBlock.text + ' ' + text).trim()
+                    text: (lastBlock.text + ' ' + text).trim(),
+                    endTime: endTime
                 };
                 return [...prev.slice(0, -1), updatedBlock];
             }
 
-            // Case 2: New Block
+            // 2. Stitching Back Strategy
+            // If the speaker matches the *previous* block (before the interruption)
+            // AND the gap is small (< MERGE_WINDOW_SECONDS), merge into that previous block.
+            if (prev.length >= 2) {
+                const previousBlock = prev[prev.length - 2];
+                if (previousBlock.speaker === speaker) {
+                    const lastEndTime = previousBlock.endTime || 0;
+                    if (lastEndTime > 0 && (endTime - lastEndTime) < MERGE_WINDOW_SECONDS) {
+                        const updatedPrev = {
+                            ...previousBlock,
+                            text: (previousBlock.text + ' ' + text).trim(),
+                            endTime: endTime
+                        };
+                        // We update the *previous* block, leaving the interruption (lastBlock) as is.
+                        const newBlocks = [...prev];
+                        newBlocks[newBlocks.length - 2] = updatedPrev;
+                        return newBlocks;
+                    }
+                }
+            }
+
+            // 3. New Speaker / New Block
             const newBlock = {
                 id: `blk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 speaker: speaker,
-                text: text.trim()
+                text: text.trim(),
+                endTime: endTime
             };
             return [...prev, newBlock];
         });
     };
+
+
 
     // --- Send Logic ---
     const sendChunkToTarget = (text, autoSubmit = true, targetTabId = null) => {
@@ -332,9 +356,13 @@ function App() {
                 if (speaker === 'Speaker 2') speaker = 'CANDIDATE';
 
                 const content = results.map(r => r.alternatives[0].content).join(' ');
+                // Get end_time from the last result
+                const lastResult = results[results.length - 1];
+                const endTime = lastResult ? lastResult.end_time : undefined;
+
                 if (!content.trim()) return;
 
-                addTranscriptChunk(speaker, content);
+                addTranscriptChunk(speaker, content, endTime);
             };
 
             clientRef.current.onError = (err) => {
@@ -526,3 +554,5 @@ function App() {
 }
 
 export default App;
+
+

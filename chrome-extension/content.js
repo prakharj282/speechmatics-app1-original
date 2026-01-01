@@ -28,7 +28,7 @@ window.addEventListener("message", (event) => {
 
     // 2. Get Tabs
     if (event.data.type && event.data.type === "COPILOT_GET_TABS") {
-        console.log("Bridge requesting tabs list...");
+        // console.log("Bridge requesting tabs list...");
         try {
             chrome.runtime.sendMessage({ type: "COPILOT_GET_TABS" }, (response) => {
                 if (chrome.runtime.lastError) {
@@ -37,7 +37,7 @@ window.addEventListener("message", (event) => {
                 }
                 
                 if (response && response.success) {
-                    console.log("Bridge received tabs from background:", response.tabs);
+                    // console.log("Bridge received tabs from background:", response.tabs);
                     window.postMessage({
                         type: "COPILOT_TABS_LIST",
                         tabs: response.tabs
